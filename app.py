@@ -11,7 +11,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "POST"])
 async def root():
     return {"message": "Sentiment API is running"}
 
