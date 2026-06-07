@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
-import re
+from textblob import TextBlob
 
 app = FastAPI()
 
@@ -12,68 +12,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.api_route("/", methods=["GET", "POST", "HEAD"])
 async def root():
     return {"message": "Sentiment API is running"}
 
-
 @app.post("/sentiment")
 async def sentiment(data: dict = Body(...)):
-
     sentences = data.get("sentences", [])
-
-    positive_words = {
-        "love", "loved", "like", "liked", "great", "good",
-        "excellent", "awesome", "amazing", "happy", "fantastic",
-        "wonderful", "best", "nice", "perfect", "enjoy",
-        "enjoyed", "brilliant", "outstanding", "delight",
-        "delighted", "pleased", "joy", "joyful", "positive",
-        "superb", "excited", "satisfied", "success",
-        "successful", "recommend", "recommended", "beautiful",
-        "favorite", "favourite", "excellent", "glad",
-        "cheerful", "smile", "smiling", "pleasant"
-    }
-
-    negative_words = {
-        "hate", "hated", "bad", "terrible", "awful", "sad",
-        "worst", "horrible", "angry", "poor", "disappointed",
-        "disappointing", "boring", "annoying", "useless",
-        "frustrating", "frustrated", "miserable", "negative",
-        "unhappy", "upset", "depressing", "depressed",
-        "disaster", "pathetic", "waste", "failure",
-        "failed", "broken", "problem", "problems",
-        "issue", "issues", "wrong", "hate", "cry",
-        "crying", "regret", "regretted", "unfortunate",
-        "dreadful", "nasty", "tragic"
-    }
 
     results = []
 
+    positive_keywords = {
+        "love", "great", "excellent", "amazing", "wonderful",
+        "fantastic", "awesome", "happy", "delighted", "pleased",
+        "best", "good", "brilliant", "outstanding", "perfect",
+        "enjoy", "enjoyed", "nice", "superb", "recommend"
+    }
+
+    negative_keywords = {
+        "hate", "terrible", "awful", "horrible", "worst",
+        "sad", "angry", "disappointed", "frustrating",
+        "miserable", "bad", "poor", "annoying", "boring",
+        "useless", "upset", "depressed", "disaster", "failure"
+    }
+
     for sentence in sentences:
+        text = sentence.lower()
 
-        words = re.findall(r"\b\w+\b", sentence.lower())
+        # Keyword override
+        if any(word in text for word in positive_keywords):
+            label = "happy"
 
-        positive_score = sum(
-            1 for word in words if word in positive_words
-        )
-
-        negative_score = sum(
-            1 for word in words if word in negative_words
-        )
-
-        if positive_score > negative_score:
-            sentiment_label = "happy"
-
-        elif negative_score > positive_score:
-            sentiment_label = "sad"
+        elif any(word in text for word in negative_keywords):
+            label = "sad"
 
         else:
-            sentiment_label = "neutral"
+            polarity = TextBlob(sentence).sentiment.polarity
+
+            if polarity > 0:
+                label = "happy"
+            elif polarity < 0:
+                label = "sad"
+            else:
+                label = "neutral"
 
         results.append({
             "sentence": sentence,
-            "sentiment": sentiment_label
+            "sentiment": label
         })
 
     return {"results": results}
